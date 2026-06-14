@@ -24,62 +24,28 @@ st.set_page_config(
 # 2. PDF Generation Helper Function (HTML to PDF via WeasyPrint)
 # -----------------------------------------------------------------------------
 def generate_pdf(content_text, document_title):
-    """
-    Converts plain text content into a beautifully formatted PDF using WeasyPrint.
-    Uses standard print-safe typography and explicit A4 paged media styling.
-    """
-    # Replace newlines with HTML line breaks or paragraphs safely
-    formatted_content = "".join(
-        f"<p>{line.strip()}</p>" if line.strip() else "<br/>"
-        for line in content_text.split("\n")
-    )
-
-    html_template = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>{document_title}</title>
-        <style>
-            @page {{
-                size: A4;
-                margin: 20mm 15mm;
-                background-color: #ffffff;
-            }}
-            * {{
-                box-sizing: border-box;
-            }}
-            body {{
-                margin: 0;
-                padding: 0;
-                font-family: 'Times New Roman', Times, serif;
-                font-size: 11pt;
-                line-height: 1.5;
-                color: #222222;
-            }}
-            p {{
-                margin: 0 0 12pt 0;
-                text-align: justify;
-            }}
-            br {{
-                content: "";
-                display: block;
-                margin-bottom: 12pt;
-            }}
-            h1, h2, h3 {{
-                color: #111111;
-                margin-top: 0;
-            }}
-        </style>
-    </head>
-    <body>
-        {formatted_content}
-    </body>
-    </html>
-    """
-    # Compile the HTML template directly to bytes in memory
-    return HTML(string=html_template).write_pdf()
-
+    """Pure Python PDF Generation with zero system dependencies"""
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    
+    # Use standard standard core fonts (No external files needed)
+    pdf.set_font("Times", size=12)
+    
+    # Title (Optional)
+    pdf.set_font("Times", style="B", size=16)
+    pdf.cell(0, 10, document_title, ln=True, align='C')
+    pdf.ln(10)
+    
+    # Body
+    pdf.set_font("Times", size=11)
+    for line in content_text.split('\n'):
+        # encode to latin-1 to avoid standard FPDF character mapping issues
+        clean_line = line.encode('latin-1', 'replace').decode('latin-1')
+        pdf.multi_cell(0, 6, clean_line)
+        
+    return pdf.output(dest='S') # Returns bytes directly
+    
 # -----------------------------------------------------------------------------
 # 3. Password Protection Layer
 # -----------------------------------------------------------------------------
