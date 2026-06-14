@@ -2,10 +2,11 @@ import streamlit as st
 from openai import OpenAI
 from pydantic import BaseModel
 from io import BytesIO
+import re
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 
 # -----------------------------------------------------------------------------
 # 1. Define the Expected Output Structure using Pydantic
@@ -29,12 +30,13 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 def generate_pdf(content_text, document_title):
     """
-    Pure Python PDF Generation using ReportLab.
-    Bulletproof text-wrapping and zero horizontal space calculation errors.
+    Advanced ReportLab PDF Generator.
+    Parses Markdown syntax (headers, bold text, bullets) and converts them
+    into perfectly styled, professional executive-level layouts.
     """
     buffer = BytesIO()
     
-    # 1. Setup Document with standard margins (0.75 inch / ~54 points)
+    # Page setup - 0.75-inch standard executive margins
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
@@ -45,55 +47,113 @@ def generate_pdf(content_text, document_title):
     )
     
     story = []
+    
+    # -------------------------------------------------------------------------
+    # Define Professional Typography & Styles (Times-Roman / Deep Corporate Palette)
+    # -------------------------------------------------------------------------
     styles = getSampleStyleSheet()
     
-    # 2. Define Custom Styles (Using Times-Roman for professional look)
     title_style = ParagraphStyle(
         name='DocTitle',
         fontName='Times-Bold',
-        fontSize=16,
-        leading=20,
+        fontSize=18,
+        leading=22,
         alignment=TA_CENTER,
+        textColor='#111111',
+        spaceAfter=4
+    )
+    
+    # Subtitle for name/contact section
+    meta_style = ParagraphStyle(
+        name='DocMeta',
+        fontName='Times-Roman',
+        fontSize=10,
+        leading=14,
+        alignment=TA_CENTER,
+        textColor='#555555',
         spaceAfter=15
+    )
+    
+    # Running Section Headings (e.g., Professional Experience, Education)
+    heading_style = ParagraphStyle(
+        name='SectionHeading',
+        fontName='Times-Bold',
+        fontSize=12,
+        leading=16,
+        alignment=TA_LEFT,
+        textColor='#1A365D',  # Deep Slate Navy Accent
+        spaceBefore=12,
+        spaceAfter=6,
+        keepWithNext=True     # Prevents headings from getting orphaned at page bottoms
     )
     
     body_style = ParagraphStyle(
         name='DocBody',
         fontName='Times-Roman',
-        fontSize=11,
+        fontSize=10.5,
         leading=15,
         alignment=TA_JUSTIFY,
-        spaceAfter=8
+        spaceAfter=6
     )
     
-    # 3. Add Document Title
-    story.append(Paragraph(document_title, title_style))
-    story.append(Spacer(1, 10))
+    bullet_style = ParagraphStyle(
+        name='DocBullet',
+        fontName='Times-Roman',
+        fontSize=10.5,
+        leading=14,
+        alignment=TA_LEFT,
+        leftIndent=15,       # Indents bullet text cleanly
+        firstLineIndent=-10, # Aligns the bullet symbol out to the left
+        spaceAfter=4
+    )
+
+    # -------------------------------------------------------------------------
+    # Process & Parse Text into Flowables
+    # -------------------------------------------------------------------------
+    lines = content_text.split('\n')
     
-    # 4. Clean and Process Content safely
-    # Convert plain text newlines into clean paragraphs for the story layout
-    for line in content_text.split('\n'):
+    # Document Header
+    story.append(Paragraph(document_title.upper(), title_style))
+    story.append(Spacer(1, 12))
+    
+    for line in lines:
         cleaned_line = line.strip()
         
         if not cleaned_line:
-            # Handle blank lines safely with small spacers instead of empty paragraphs
-            story.append(Spacer(1, 6))
             continue
             
-        # Escape basic HTML characters to prevent ReportLab markup parsing crashes
-        safe_line = (
+        # 1. Clean HTML characters so ReportLab doesn't crash on syntax symbols
+        cleaned_line = (
             cleaned_line.replace('&', '&amp;')
                         .replace('<', '&lt;')
                         .replace('>', '&gt;')
         )
         
-        # Append the paragraph to the document sequence
-        story.append(Paragraph(safe_line, body_style))
+        # 2. Convert Markdown Bold (**text**) to HTML style tags (<b>text</b>)
+        cleaned_line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', cleaned_line)
         
-    # 5. Build PDF directly into the memory buffer
+        # 3. Check for Headings (e.g., "### Experience" or "### Summary")
+        if cleaned_line.startswith('###') or cleaned_line.startswith('##'):
+            text = cleaned_line.lstrip('#').strip()
+            story.append(Paragraph(text, heading_style))
+            
+        # 4. Check for Bullet Points (e.g., "- Built AI agents..." or "* Managed risk...")
+        elif cleaned_line.startswith('- ') or cleaned_line.startswith('* ') or cleaned_line.startswith('• '):
+            text = cleaned_line[2:].strip()
+            # Insert a neat unicode bullet character
+            bullet_text = f"&bull; {text}"
+            story.append(Paragraph(bullet_text, bullet_style))
+            
+        # 5. Handle standard body text paragraphs
+        else:
+            # If it looks like a contact info string (contains | symbols), center align it
+            if '|' in cleaned_line:
+                story.append(Paragraph(cleaned_line, meta_style))
+            else:
+                story.append(Paragraph(cleaned_line, body_style))
+                
+    # Build the document template sequence
     doc.build(story)
-    
-    # Retrieve the raw bytes
     pdf_bytes = buffer.getvalue()
     buffer.close()
     
