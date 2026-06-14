@@ -1,7 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 from pydantic import BaseModel
-from weasyprint import HTML
+from fpdf import FPDF
 
 # -----------------------------------------------------------------------------
 # 1. Define the Expected Output Structure using Pydantic
