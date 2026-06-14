@@ -2,3 +2,5 @@ streamlit>=1.30.0
 openai>=1.0.0
 pydantic>=2.0.0
 weasyprint>=60.0
+libpango-1.0-0
+libpangoft2-1.0-0
