@@ -43,7 +43,7 @@ st.subheader("Target Job Description")
 job_description = st.text_area(
     "Paste the job description or role requirements below:",
     height=300,
-    placeholder="Looking for a Lead Data Scientist to optimize credit risk, build AI agents..."
+    placeholder="Looking for a Lead Data Scientist to use operations research skills, build AI agents..."
 )
 
 # -----------------------------------------------------------------------------
@@ -67,8 +67,8 @@ if st.button("Generate Materials", type="primary"):
                 
                 Please generate three distinct items:
                 1. **Tailored Resume**: Optimize the bullet points, summaries, and skills from the Master Resume to highlight the most relevant technical and strategic alignment with the Job Description. Do not invent false experience.
-                2. **Cover Letter**: Write a compelling, highly professional cover letter matching the candidate's exact background to the key themes of the job description.
-                3. **Interest Blurb**: Write a concise, 1-2 paragraph response to the standard prompt: "Why are you interested in this position/company?". Make it punchy, authentic, and metric-focused where possible.
+                2. **Cover Letter**: Write a compelling, highly professional cover letter matching the candidate's exact background to the key themes of the job description. Keep it to 3 paragraphs. Use Master Resume.
+                3. **Interest Blurb**: Write a concise, one paragraph response to the standard prompt: "Why are you interested in this position/company?". Make it punchy, authentic, and metric-focused where possible.
 
                 ---
                 ### MASTER RESUME
