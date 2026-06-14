@@ -1,6 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 from pydantic import BaseModel
+from weasyprint import HTML
 
 # -----------------------------------------------------------------------------
 # 1. Define the Expected Output Structure using Pydantic
@@ -18,6 +19,66 @@ st.set_page_config(
     page_icon="💼",
     layout="wide"
 )
+
+# -----------------------------------------------------------------------------
+# 2. PDF Generation Helper Function (HTML to PDF via WeasyPrint)
+# -----------------------------------------------------------------------------
+def generate_pdf(content_text, document_title):
+    """
+    Converts plain text content into a beautifully formatted PDF using WeasyPrint.
+    Uses standard print-safe typography and explicit A4 paged media styling.
+    """
+    # Replace newlines with HTML line breaks or paragraphs safely
+    formatted_content = "".join(
+        f"<p>{line.strip()}</p>" if line.strip() else "<br/>"
+        for line in content_text.split("\n")
+    )
+
+    html_template = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>{document_title}</title>
+        <style>
+            @page {{
+                size: A4;
+                margin: 20mm 15mm;
+                background-color: #ffffff;
+            }}
+            * {{
+                box-sizing: border-box;
+            }}
+            body {{
+                margin: 0;
+                padding: 0;
+                font-family: 'Times New Roman', Times, serif;
+                font-size: 11pt;
+                line-height: 1.5;
+                color: #222222;
+            }}
+            p {{
+                margin: 0 0 12pt 0;
+                text-align: justify;
+            }}
+            br {{
+                content: "";
+                display: block;
+                margin-bottom: 12pt;
+            }}
+            h1, h2, h3 {{
+                color: #111111;
+                margin-top: 0;
+            }}
+        </style>
+    </head>
+    <body>
+        {formatted_content}
+    </body>
+    </html>
+    """
+    # Compile the HTML template directly to bytes in memory
+    return HTML(string=html_template).write_pdf()
 
 # -----------------------------------------------------------------------------
 # 3. Password Protection Layer
@@ -149,6 +210,12 @@ if "results" in st.session_state:
     
     with tab1:
         st.markdown("### Cover Letter")
+        st.download_button(
+            label="⬇️ Download Cover Letter PDF",
+            data=cl_pdf_bytes,
+            file_name="Cover_Letter.pdf",
+            mime="application/pdf"
+        )
         st.text_area("Copy Cover Letter", value=materials.cover_letter, height=500)
         
     with tab2:
@@ -157,4 +224,10 @@ if "results" in st.session_state:
         
     with tab3:
         st.markdown("### Tailored Resume Suggestion")
+        st.download_button(
+            label="⬇️ Download Resume PDF",
+            data=resume_pdf_bytes,
+            file_name="Tailored_Resume.pdf",
+            mime="application/pdf"
+        )
         st.text_area("Copy Tailored Resume", value=materials.tailored_resume, height=600)
