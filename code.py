@@ -255,7 +255,7 @@ if st.button("Generate Materials", type="primary"):
 
                 # Call OpenAI with Structured Outputs
                 response = client.beta.chat.completions.parse(
-                    model="gpt-4o",  # or gpt-4o-mini for speed/cost efficiency
+                    model="gpt-5.4-mini",  # or gpt-4o-mini for speed/cost efficiency
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
