@@ -2,6 +2,7 @@ import streamlit as st
 from openai import OpenAI
 from pydantic import BaseModel
 from fpdf import FPDF
+import re
 
 # -----------------------------------------------------------------------------
 # 1. Define the Expected Output Structure using Pydantic
@@ -24,28 +25,45 @@ st.set_page_config(
 # 2. PDF Generation Helper Function (HTML to PDF via WeasyPrint)
 # -----------------------------------------------------------------------------
 def generate_pdf(content_text, document_title):
-    """Pure Python PDF Generation with zero system dependencies"""
+    """Pure Python PDF Generation with safety text wrapping controls"""
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     
-    # Use standard standard core fonts (No external files needed)
-    pdf.set_font("Times", size=12)
+    # 1. Clean the text before feeding it to FPDF
+    # Expand tabs into standard spaces so FPDF doesn't break on spacing math
+    cleaned_text = content_text.expandtabs(4)
     
-    # Title (Optional)
+    # Replace long continuous markdown horizontal lines (like '---') with a safer length
+    cleaned_text = re.sub(r'-{5,}', '-----', cleaned_text)
+
+    # 2. Add Title Section
     pdf.set_font("Times", style="B", size=16)
     pdf.cell(0, 10, document_title, ln=True, align='C')
     pdf.ln(10)
     
-    # Body
+    # 3. Add Body Text
     pdf.set_font("Times", size=11)
-    for line in content_text.split('\n'):
-        # encode to latin-1 to avoid standard FPDF character mapping issues
-        clean_line = line.encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 6, clean_line)
-        
-    return pdf.output(dest='S') # Returns bytes directly
     
+    for line in cleaned_text.split('\n'):
+        # Encode to latin-1 to avoid standard FPDF character mapping issues
+        clean_line = line.encode('latin-1', 'replace').decode('latin-1')
+        
+        # If the line is empty, just add a vertical line break
+        if not clean_line.strip():
+            pdf.ln(4)
+            continue
+            
+        # Use multi_cell with an explicit 0 width (fills to right margin)
+        try:
+            pdf.multi_cell(0, 6, clean_line)
+        except Exception:
+            # Fallback defensive measure: if a specific line still breaks formatting math,
+            # split it by tokens and print to prevent the entire app from crashing.
+            shortened_line = " ".join([word[:20] if len(word) > 25 else word for word in clean_line.split()])
+            pdf.multi_cell(0, 6, shortened_line)
+            
+    return pdf.output(dest='S')  # Returns bytes directly    
 # -----------------------------------------------------------------------------
 # 3. Password Protection Layer
 # -----------------------------------------------------------------------------
