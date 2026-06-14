@@ -176,6 +176,9 @@ if "results" in st.session_state:
     
     with tab1:
         st.markdown("### Cover Letter")
+
+        cl_pdf_bytes = generate_pdf(materials.cover_letter, "Cover Letter")
+        
         st.download_button(
             label="⬇️ Download Cover Letter PDF",
             data=cl_pdf_bytes,
@@ -190,6 +193,9 @@ if "results" in st.session_state:
         
     with tab3:
         st.markdown("### Tailored Resume Suggestion")
+
+        resume_pdf_bytes = generate_pdf(materials.tailored_resume, "Tailored Resume")
+        
         st.download_button(
             label="⬇️ Download Resume PDF",
             data=resume_pdf_bytes,
