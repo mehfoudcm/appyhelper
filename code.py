@@ -1,8 +1,11 @@
 import streamlit as st
 from openai import OpenAI
 from pydantic import BaseModel
-from fpdf import FPDF
-import re
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 
 # -----------------------------------------------------------------------------
 # 1. Define the Expected Output Structure using Pydantic
@@ -25,45 +28,76 @@ st.set_page_config(
 # 2. PDF Generation Helper Function (HTML to PDF via WeasyPrint)
 # -----------------------------------------------------------------------------
 def generate_pdf(content_text, document_title):
-    """Pure Python PDF Generation with safety text wrapping controls"""
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
+    """
+    Pure Python PDF Generation using ReportLab.
+    Bulletproof text-wrapping and zero horizontal space calculation errors.
+    """
+    buffer = BytesIO()
     
-    # 1. Clean the text before feeding it to FPDF
-    # Expand tabs into standard spaces so FPDF doesn't break on spacing math
-    cleaned_text = content_text.expandtabs(4)
+    # 1. Setup Document with standard margins (0.75 inch / ~54 points)
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=54,
+        leftMargin=54,
+        topMargin=54,
+        bottomMargin=54
+    )
     
-    # Replace long continuous markdown horizontal lines (like '---') with a safer length
-    cleaned_text = re.sub(r'-{5,}', '-----', cleaned_text)
-
-    # 2. Add Title Section
-    pdf.set_font("Times", style="B", size=16)
-    pdf.cell(0, 10, document_title, ln=True, align='C')
-    pdf.ln(10)
+    story = []
+    styles = getSampleStyleSheet()
     
-    # 3. Add Body Text
-    pdf.set_font("Times", size=11)
+    # 2. Define Custom Styles (Using Times-Roman for professional look)
+    title_style = ParagraphStyle(
+        name='DocTitle',
+        fontName='Times-Bold',
+        fontSize=16,
+        leading=20,
+        alignment=TA_CENTER,
+        spaceAfter=15
+    )
     
-    for line in cleaned_text.split('\n'):
-        # Encode to latin-1 to avoid standard FPDF character mapping issues
-        clean_line = line.encode('latin-1', 'replace').decode('latin-1')
+    body_style = ParagraphStyle(
+        name='DocBody',
+        fontName='Times-Roman',
+        fontSize=11,
+        leading=15,
+        alignment=TA_JUSTIFY,
+        spaceAfter=8
+    )
+    
+    # 3. Add Document Title
+    story.append(Paragraph(document_title, title_style))
+    story.append(Spacer(1, 10))
+    
+    # 4. Clean and Process Content safely
+    # Convert plain text newlines into clean paragraphs for the story layout
+    for line in content_text.split('\n'):
+        cleaned_line = line.strip()
         
-        # If the line is empty, just add a vertical line break
-        if not clean_line.strip():
-            pdf.ln(4)
+        if not cleaned_line:
+            # Handle blank lines safely with small spacers instead of empty paragraphs
+            story.append(Spacer(1, 6))
             continue
             
-        # Use multi_cell with an explicit 0 width (fills to right margin)
-        try:
-            pdf.multi_cell(0, 6, clean_line)
-        except Exception:
-            # Fallback defensive measure: if a specific line still breaks formatting math,
-            # split it by tokens and print to prevent the entire app from crashing.
-            shortened_line = " ".join([word[:20] if len(word) > 25 else word for word in clean_line.split()])
-            pdf.multi_cell(0, 6, shortened_line)
-            
-    return pdf.output(dest='S')  # Returns bytes directly    
+        # Escape basic HTML characters to prevent ReportLab markup parsing crashes
+        safe_line = (
+            cleaned_line.replace('&', '&amp;')
+                        .replace('<', '&lt;')
+                        .replace('>', '&gt;')
+        )
+        
+        # Append the paragraph to the document sequence
+        story.append(Paragraph(safe_line, body_style))
+        
+    # 5. Build PDF directly into the memory buffer
+    doc.build(story)
+    
+    # Retrieve the raw bytes
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    
+    return pdf_bytes
 # -----------------------------------------------------------------------------
 # 3. Password Protection Layer
 # -----------------------------------------------------------------------------
