@@ -284,7 +284,7 @@ if "results" in st.session_state:
     st.subheader("Your Generated Materials")
     
     # Create clean layout tabs
-    tab1, tab2, tab3 = st.tabs(["📄 Cover Letter", "🎯 Why This Role?", "📝 Tailored Resume"])
+    tab1, tab2, tab3 = st.tabs(["📄 Cover Letter", "🎯 Why This Role?", "📝 Resume"])
     
     with tab1:
         st.markdown("### Cover Letter")
@@ -304,9 +304,9 @@ if "results" in st.session_state:
         st.text_area("Copy Blurb", value=materials.interest_blurb, height=250)
         
     with tab3:
-        st.markdown("### Tailored Resume Suggestion")
+        st.markdown("### Resume Suggestion")
 
-        resume_pdf_bytes = generate_pdf(materials.tailored_resume, "Tailored Resume")
+        resume_pdf_bytes = generate_pdf(materials.tailored_resume, "Resume")
         
         st.download_button(
             label="⬇️ Download Resume PDF",
