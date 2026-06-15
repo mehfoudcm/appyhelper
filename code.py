@@ -240,7 +240,7 @@ if st.button("Generate Materials", type="primary"):
                 You are given a candidate's Master Resume and a Target Job Description. 
                 
                 Please generate three distinct items:
-                1. **Tailored Resume**: Optimize the bullet points, summaries, and skills from the Master Resume to highlight the most relevant technical and strategic alignment with the Job Description. Do not invent false experience.
+                1. **Resume**: Optimize the bullet points, summaries, and skills from the Master Resume to highlight the most relevant technical and strategic alignment with the Target Job Description. Do not invent false experience.
                 2. **Cover Letter**: Write a compelling, highly professional cover letter matching the candidate's exact background to the key themes of the job description. Keep it to 3 paragraphs. Use Master Resume.
                 3. **Interest Blurb**: Write a concise, one paragraph response to the standard prompt: "Why are you interested in this position/company?". Make it punchy, authentic, and metric-focused where possible.
 
