@@ -34,7 +34,7 @@ def generate_pdf(content_text, mode="resume"):
         "SUMMARY",
         "WORK EXPERIENCE", 
         "PROFESSIONAL EXPERIENCE",
-        "EXPERIENCE",
+        # "EXPERIENCE",
         "SKILLS", 
         "TECHNICAL SKILLS",
         "EDUCATION"
