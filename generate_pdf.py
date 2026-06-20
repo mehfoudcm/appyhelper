@@ -2,7 +2,7 @@
 from io import BytesIO
 import re
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, HRFlowable, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.lib.colors import HexColor
@@ -10,8 +10,7 @@ from reportlab.lib.colors import HexColor
 def generate_pdf(content_text, mode="resume"):
     """
     Advanced ReportLab PDF Generator module configured for targeted executive sections.
-    Explicitly breaks down Work Experience entries into structured Title, Company, 
-    Years, and Work sub-elements.
+    Suppresses the giant top header title entirely when rendering a cover letter.
     """
     buffer = BytesIO()
     
@@ -95,24 +94,21 @@ def generate_pdf(content_text, mode="resume"):
         keepWithNext=True
     )
     
-    # --- WORK EXPERIENCE METADATA SEGMENTS ---
-    # Distinct Style for: Title & Years (Primary Line)
     title_line_style = ParagraphStyle(
         name='RoleTitleAndYears',
         fontName='Helvetica-Bold',
         fontSize=11.5,
         leading=15,
         alignment=TA_LEFT,
-        textColor=PRIMARY_COLOR,           # Accent color emphasizes the role title
+        textColor=PRIMARY_COLOR,
         spaceBefore=8,
         spaceAfter=2,
         keepWithNext=True
     )
     
-    # Distinct Style for: Company / Location Sub-headline
     company_style = ParagraphStyle(
         name='CompanySubHeadline',
-        fontName='Helvetica-Oblique',       # Elegant italic styling distinguishes company
+        fontName='Helvetica-Oblique',
         fontSize=10.5,
         leading=14,
         alignment=TA_LEFT,
@@ -132,7 +128,6 @@ def generate_pdf(content_text, mode="resume"):
         spaceAfter=10 if mode == "cover_letter" else 5
     )
     
-    # Distinct Style for: Work accomplishments (Indented Bullet Block)
     bullet_style = ParagraphStyle(
         name='DocBullet',
         fontName='Helvetica',
@@ -148,16 +143,22 @@ def generate_pdf(content_text, mode="resume"):
     # -------------------------------------------------------------------------
     # 3. Parse & Build Document Flow
     # -------------------------------------------------------------------------
-    story.append(Paragraph(derived_title.upper(), title_style))
+    # Only render the giant standalone Name Header block if it's a resume layout
+    if mode == "resume":
+        story.append(Paragraph(derived_title.upper(), title_style))
     
     current_section = ""
     
     for line in lines:
         cleaned_line = line.strip()
-        if not cleaned_line or cleaned_line == derived_title:
+        if not cleaned_line:
             continue
             
-        # Clean HTML markup characters so ReportLab XML parser doesn't choke
+        # Suppress writing the derived title twice if it appears naturally inside a resume
+        if mode == "resume" and cleaned_line == derived_title:
+            continue
+            
+        # Clean HTML markup characters so ReportLab XML parser doesn't crash
         cleaned_line = (
             cleaned_line.replace('&', '&amp;')
                         .replace('<', '&lt;')
@@ -180,26 +181,21 @@ def generate_pdf(content_text, mode="resume"):
             story.append(Paragraph(cleaned_line.lstrip('#').strip(), heading_style))
             continue
 
-        # A. CATCH BULLET POINTS (Representing "Work" Accomplishments)
+        # A. CATCH BULLET POINTS
         if cleaned_line.startswith('- ') or cleaned_line.startswith('* ') or cleaned_line.startswith('• '):
             text = cleaned_line[2:].strip()
             bullet_text = f"<font color='{PRIMARY_COLOR.hexval()}'>&bull;</font> {text}"
             story.append(Paragraph(bullet_text, bullet_style))
             
-        # B. CATCH RECURRING STRUCTURAL WORK EXPERIENCE LABELS
+        # B. CATCH RECURRING STRUCTURAL WORK EXPERIENCE LABELS (Resume Mode Only)
         elif mode == "resume" and ("WORK EXPERIENCE" in current_section or "EXPERIENCE" in current_section):
-            # Check for common indicators of an entry containing Title, Company, or Years
             has_pipe = '|' in cleaned_line
             has_years = bool(re.search(r'(Present|\b20\d{2}\b)', cleaned_line))
             
             if has_pipe or has_years:
-                # Tokenize line dynamically using common split patterns
                 parts = [p.strip() for p in re.split(r'[\|\–\-–—]', cleaned_line) if p.strip()]
                 
-                # If we have distinct components, isolate Title, Company, and Years
                 if len(parts) >= 2:
-                    # Heuristic optimization: titles are often first or contain 'Director/Lead/Scientist/Engineer'
-                    # Years are almost always at the end.
                     years_found = ""
                     remaining_parts = []
                     
@@ -212,39 +208,33 @@ def generate_pdf(content_text, mode="resume"):
                     if len(remaining_parts) >= 2:
                         title_text = remaining_parts[0]
                         company_text = remaining_parts[1]
-                    elif len(remaining_parts) == 1:
-                        title_text = remaining_parts[0]
-                        company_text = "Organization"
                     else:
-                        title_text = "Position"
+                        title_text = remaining_parts[0] if remaining_parts else "Position"
                         company_text = "Organization"
                         
-                    # Clean markdown markers off text fields safely
                     title_clean = title_text.replace('<b>', '').replace('</b>', '')
                     company_clean = company_text.replace('<b>', '').replace('</b>', '')
                     
-                    # Construct Segment 1: Title and Years Right-Balanced via an elegant structural line
-                    # Using a ReportLab inline spacing structure or clean template layout
                     role_html = f"<b>{title_clean}</b>"
                     if years_found:
                         role_html += f" &nbsp;|&nbsp; <font color='{SECONDARY_COLOR.hexval()}'>{years_found}</font>"
                     
                     story.append(Paragraph(role_html, title_line_style))
-                    
-                    # Construct Segment 2: Distinct Company Sub-Headline
                     story.append(Paragraph(company_clean, company_style))
-                    
                 else:
-                    # Fallback structural presentation if line can't be tokenized accurately
                     story.append(Paragraph(cleaned_line, title_line_style))
             else:
                 story.append(Paragraph(cleaned_line, body_style))
                 
-        # C. CATCH EVERYTHING ELSE (Contact metadata or Standard Paragraph Blocks)
+        # C. CATCH EVERYTHING ELSE (Contact lines or Normal Cover Letter Paragraph Blocks)
         else:
             if '|' in cleaned_line:
-                styled_meta = cleaned_line.replace('|', f" <font color='{SECONDARY_COLOR.hexval()}'>|</font> ")
-                story.append(Paragraph(styled_meta, meta_style))
+                # Keep contact metadata cleanly centered for a resume header, but flush-left for cover letter body text
+                if mode == "resume":
+                    styled_meta = cleaned_line.replace('|', f" <font color='{SECONDARY_COLOR.hexval()}'>|</font> ")
+                    story.append(Paragraph(styled_meta, meta_style))
+                else:
+                    story.append(Paragraph(cleaned_line, body_style))
             else:
                 story.append(Paragraph(cleaned_line, body_style))
                 
