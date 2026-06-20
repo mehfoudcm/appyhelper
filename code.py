@@ -1,13 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 from pydantic import BaseModel
-from io import BytesIO
-import re
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
-from reportlab.lib.colors import HexColor
+from generate_pdf import generate_pdf
 
 # -----------------------------------------------------------------------------
 # 1. Define the Expected Output Structure using Pydantic
