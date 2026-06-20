@@ -10,7 +10,7 @@ from reportlab.lib.colors import HexColor
 def generate_pdf(content_text, mode="resume"):
     """
     Advanced ReportLab PDF Generator module configured for targeted executive sections.
-    Safely leaves formal letter greetings (e.g., 'DEAR HIRING TEAM') as native body text.
+    Applies independent subheader fonts to parsed metadata targets without showing labels.
     """
     buffer = BytesIO()
     
@@ -33,14 +33,14 @@ def generate_pdf(content_text, mode="resume"):
         "PROFESSIONAL SUMMARY", 
         "SUMMARY",
         "WORK EXPERIENCE", 
-        "PROFESSIONAL EXPERIENCE",
+        # "PROFESSIONAL EXPERIENCE",
         # "EXPERIENCE",
         "SKILLS", 
         "TECHNICAL SKILLS",
         "EDUCATION"
     ]
     
-    # 1. Dynamic Name Extraction (Scans top 5 lines for the candidate's name)
+    # Dynamic Name Extraction (Scans top 5 lines for the candidate's name)
     derived_title = "APPLICATION MATERIALS"
     for line in lines[:5]:
         cleaned = line.strip()
@@ -55,12 +55,12 @@ def generate_pdf(content_text, mode="resume"):
             break
 
     # -------------------------------------------------------------------------
-    # 2. Define High-End Palette & Segmented Typography Styles
+    # Typography & Subheader Palette Design
     # -------------------------------------------------------------------------
     PRIMARY_COLOR = HexColor("#1E3A8A")   # Royal Slate Blue
-    SECONDARY_COLOR = HexColor("#D97706")  # Warm Amber / Accent Gold
-    TEXT_DARK = HexColor("#1F2937")        # Charcoal Body Text
-    TEXT_MUTED = HexColor("#4B5563")       # Muted Contact Info
+    SECONDARY_COLOR = HexColor("#D97706")  # Warm Amber
+    TEXT_DARK = HexColor("#1F2937")        # Charcoal
+    TEXT_MUTED = HexColor("#4B5563")       # Slate Gray
     
     title_style = ParagraphStyle(
         name='DocTitle',
@@ -82,39 +82,55 @@ def generate_pdf(content_text, mode="resume"):
         spaceAfter=14
     )
     
+    # Font Style 1: "Experience" Section Heading
     heading_style = ParagraphStyle(
         name='SectionHeading',
         fontName='Helvetica-Bold',
-        fontSize=18,
-        leading=22,
+        fontSize=16,
+        leading=20,
         alignment=TA_LEFT,
         textColor=PRIMARY_COLOR,
-        spaceBefore=4,
-        spaceAfter=10,
+        spaceBefore=14,
+        spaceAfter=8,
         keepWithNext=True
     )
     
-    title_line_style = ParagraphStyle(
-        name='RoleTitleAndYears',
-        fontName='Helvetica-Bold',
-        fontSize=11.5,
-        leading=15,
+    # Font Style 2: "Title" (Role Headline)
+    role_title_style = ParagraphStyle(
+        name='SubTitleRole',
+        fontName='Helvetica-Bold',         # Solid Bold
+        fontSize=12,
+        leading=16,
         alignment=TA_LEFT,
         textColor=PRIMARY_COLOR,
-        spaceBefore=8,
-        spaceAfter=2,
+        spaceBefore=6,
+        spaceAfter=1,
         keepWithNext=True
     )
     
-    company_style = ParagraphStyle(
-        name='CompanySubHeadline',
-        fontName='Helvetica-Oblique',
+    # Font Style 3: "Company Name" Subheader
+    company_name_style = ParagraphStyle(
+        name='SubCompany',
+        fontName='Helvetica-BoldOblique',   # Distinct Bold Italic styling
         fontSize=10.5,
         leading=14,
         alignment=TA_LEFT,
         textColor=TEXT_DARK,
+        spaceBefore=1,
+        spaceAfter=1,
+        keepWithNext=True
+    )
+    
+    # Font Style 4: "Years" Subheader
+    years_style = ParagraphStyle(
+        name='SubYears',
+        fontName='Helvetica-Oblique',       # Clean structural Italic layout
+        fontSize=9.5,
+        leading=13,
+        alignment=TA_LEFT,
+        textColor=SECONDARY_COLOR,
         spaceBefore=0,
-        spaceAfter=5,
+        spaceAfter=4,
         keepWithNext=True
     )
     
@@ -141,7 +157,7 @@ def generate_pdf(content_text, mode="resume"):
     )
 
     # -------------------------------------------------------------------------
-    # 3. Parse & Build Document Flow
+    # Parse & Build Document Flow
     # -------------------------------------------------------------------------
     if mode == "resume":
         story.append(Paragraph(derived_title.upper(), title_style))
@@ -156,20 +172,14 @@ def generate_pdf(content_text, mode="resume"):
         if mode == "resume" and cleaned_line == derived_title:
             continue
             
-        # Clean HTML markup characters so ReportLab XML parser doesn't crash
         cleaned_line = (
             cleaned_line.replace('&', '&amp;')
                         .replace('<', '&lt;')
                         .replace('>', '&gt;')
         )
-        
-        # Translate standard markdown bold rules to inner HTML bold tags
         cleaned_line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', cleaned_line)
         
-        # Normalize the line to check against targeted structural headers
         normalized_line = cleaned_line.lstrip('#').strip().upper()
-        
-        # Explicit exception rule: Ignore lines that start with standard greetings (e.g. DEAR...)
         is_greeting = normalized_line.startswith("DEAR ") or normalized_line.startswith("TO WHOM")
         
         is_target_section = (
@@ -177,64 +187,60 @@ def generate_pdf(content_text, mode="resume"):
             any(sec == normalized_line or normalized_line.startswith(sec) for sec in TARGET_SECTIONS)
         )
         
-        # A. CATCH MAJOR TARGETED HEADINGS (With greeting protection enabled)
+        # A. EXPERIENCE SECTION HEADINGS
         if (cleaned_line.startswith('#') and not is_greeting) or is_target_section:
             current_section = next((sec for sec in TARGET_SECTIONS if sec == normalized_line or normalized_line.startswith(sec)), "")
             
             if mode == "resume":
                 story.append(HRFlowable(
                     width="100%", thickness=1.5, color=PRIMARY_COLOR,
-                    spaceBefore=14, spaceAfter=6
+                    spaceBefore=12, spaceAfter=6
                 ))
             story.append(Paragraph(cleaned_line.lstrip('#').strip(), heading_style))
             continue
 
-        # B. CATCH BULLET POINTS
+        # B. WORK ACCOMPLISHMENT BULLETS
         if cleaned_line.startswith('- ') or cleaned_line.startswith('* ') or cleaned_line.startswith('• '):
             text = cleaned_line[2:].strip()
             bullet_text = f"<font color='{PRIMARY_COLOR.hexval()}'>&bull;</font> {text}"
             story.append(Paragraph(bullet_text, bullet_style))
             
-        # C. CATCH RECURRING STRUCTURAL WORK EXPERIENCE LABELS (Resume Mode Only)
+        # C. GRANULAR WORK EXPERIENCE METADATA PARSING
         elif mode == "resume" and ("WORK EXPERIENCE" in current_section or "EXPERIENCE" in current_section):
-            has_pipe = '|' in cleaned_line
-            has_years = bool(re.search(r'(Present|\b20\d{2}\b)', cleaned_line))
+            # Check if this line is explicitly stating a field or structured via standard pipes
+            lower_line = cleaned_line.lower()
             
-            if has_pipe or has_years:
-                parts = [p.strip() for p in re.split(r'[\|\–\-–—]', cleaned_line) if p.strip()]
+            # Pattern 1: Explicit labels present (e.g., "Company: Acme Corp")
+            if "company:" in lower_line or "title:" in lower_line or "years:" in lower_line:
+                # Strip out the actual label words cleanly via regex
+                clean_text = re.sub(r'(?i)\b(company|title|years|duration|date|dates)\s*:\s*', '', cleaned_line)
+                clean_text = clean_text.replace('<b>', '').replace('</b>', '').strip()
                 
-                if len(parts) >= 2:
-                    years_found = ""
-                    remaining_parts = []
+                if "title:" in lower_line:
+                    story.append(Paragraph(clean_text, role_title_style))
+                elif "company:" in lower_line:
+                    story.append(Paragraph(clean_text, company_name_style))
+                elif "years:" in lower_line:
+                    story.append(Paragraph(clean_text, years_style))
                     
-                    for part in parts:
-                        if re.search(r'(Present|\b20\d{2}\b)', part):
-                            years_found = part.replace('<b>', '').replace('</b>', '')
-                        else:
-                            remaining_parts.append(part)
-                    
-                    if len(remaining_parts) >= 2:
-                        title_text = remaining_parts[0]
-                        company_text = remaining_parts[1]
-                    else:
-                        title_text = remaining_parts[0] if remaining_parts else "Position"
-                        company_text = "Organization"
-                        
-                    title_clean = title_text.replace('<b>', '').replace('</b>', '')
-                    company_clean = company_text.replace('<b>', '').replace('</b>', '')
-                    
-                    role_html = f"<b>{title_clean}</b>"
-                    if years_found:
-                        role_html += f" &nbsp;|&nbsp; <font color='{SECONDARY_COLOR.hexval()}'>{years_found}</font>"
-                    
-                    story.append(Paragraph(role_html, title_line_style))
-                    story.append(Paragraph(company_clean, company_style))
+            # Pattern 2: Inline layout fallback (e.g., "Senior Engineer | Google | 2022 - Present")
+            elif '|' in cleaned_line or bool(re.search(r'(Present|\b20\d{2}\b)', cleaned_line)):
+                parts = [p.strip().replace('<b>', '').replace('</b>', '') for p in re.split(r'[\|\–\-–—]', cleaned_line) if p.strip()]
+                
+                # Dynamically assign cascading subheaders sequentially down the layout tree
+                if len(parts) >= 3:
+                    story.append(Paragraph(parts[0], role_title_style))       # Title
+                    story.append(Paragraph(parts[1], company_name_style))   # Company Name
+                    story.append(Paragraph(parts[2], years_style))          # Years
+                elif len(parts) == 2:
+                    story.append(Paragraph(parts[0], role_title_style))       # Title
+                    story.append(Paragraph(parts[1], company_name_style))   # Company Name
                 else:
-                    story.append(Paragraph(cleaned_line, title_line_style))
+                    story.append(Paragraph(cleaned_line, role_title_style))
             else:
                 story.append(Paragraph(cleaned_line, body_style))
                 
-        # D. CATCH EVERYTHING ELSE (Greetings fall perfectly down here)
+        # D. STANDALONE PARAGRAPHS & CONTACT META
         else:
             if '|' in cleaned_line:
                 if mode == "resume":
