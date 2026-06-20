@@ -211,7 +211,7 @@ def generate_pdf(content_text, mode="resume"):
             lower_line = cleaned_line.lower()
             
             # Pattern 1: Explicit labels present (e.g., "Company Name: Acme Corp")
-            if "company Name:" in lower_line or "title:" in lower_line or "years:" in lower_line:
+            if "Company Name:" in lower_line or "title:" in lower_line or "years:" in lower_line:
                 # Strip out the actual label words cleanly via regex
                 clean_text = re.sub(r'(?i)\b(company name|title|years|duration|date|dates)\s*:\s*', '', cleaned_line)
                 clean_text = clean_text.replace('<b>', '').replace('</b>', '').strip()
