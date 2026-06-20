@@ -10,7 +10,7 @@ from reportlab.lib.colors import HexColor
 def generate_pdf(content_text, mode="resume"):
     """
     Advanced ReportLab PDF Generator module configured for targeted executive sections.
-    Suppresses the giant top header title entirely when rendering a cover letter.
+    Safely leaves formal letter greetings (e.g., 'DEAR HIRING TEAM') as native body text.
     """
     buffer = BytesIO()
     
@@ -143,7 +143,6 @@ def generate_pdf(content_text, mode="resume"):
     # -------------------------------------------------------------------------
     # 3. Parse & Build Document Flow
     # -------------------------------------------------------------------------
-    # Only render the giant standalone Name Header block if it's a resume layout
     if mode == "resume":
         story.append(Paragraph(derived_title.upper(), title_style))
     
@@ -154,7 +153,6 @@ def generate_pdf(content_text, mode="resume"):
         if not cleaned_line:
             continue
             
-        # Suppress writing the derived title twice if it appears naturally inside a resume
         if mode == "resume" and cleaned_line == derived_title:
             continue
             
@@ -168,10 +166,20 @@ def generate_pdf(content_text, mode="resume"):
         # Translate standard markdown bold rules to inner HTML bold tags
         cleaned_line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', cleaned_line)
         
-        # Track current section context to refine parser logic adjustments
+        # Normalize the line to check against targeted structural headers
         normalized_line = cleaned_line.lstrip('#').strip().upper()
-        if any(sec == normalized_line or normalized_line.startswith(sec) for sec in TARGET_SECTIONS):
-            current_section = next(sec for sec in TARGET_SECTIONS if sec == normalized_line or normalized_line.startswith(sec))
+        
+        # Explicit exception rule: Ignore lines that start with standard greetings (e.g. DEAR...)
+        is_greeting = normalized_line.startswith("DEAR ") or normalized_line.startswith("TO WHOM")
+        
+        is_target_section = (
+            not is_greeting and 
+            any(sec == normalized_line or normalized_line.startswith(sec) for sec in TARGET_SECTIONS)
+        )
+        
+        # A. CATCH MAJOR TARGETED HEADINGS (With greeting protection enabled)
+        if (cleaned_line.startswith('#') and not is_greeting) or is_target_section:
+            current_section = next((sec for sec in TARGET_SECTIONS if sec == normalized_line or normalized_line.startswith(sec)), "")
             
             if mode == "resume":
                 story.append(HRFlowable(
@@ -181,13 +189,13 @@ def generate_pdf(content_text, mode="resume"):
             story.append(Paragraph(cleaned_line.lstrip('#').strip(), heading_style))
             continue
 
-        # A. CATCH BULLET POINTS
+        # B. CATCH BULLET POINTS
         if cleaned_line.startswith('- ') or cleaned_line.startswith('* ') or cleaned_line.startswith('• '):
             text = cleaned_line[2:].strip()
             bullet_text = f"<font color='{PRIMARY_COLOR.hexval()}'>&bull;</font> {text}"
             story.append(Paragraph(bullet_text, bullet_style))
             
-        # B. CATCH RECURRING STRUCTURAL WORK EXPERIENCE LABELS (Resume Mode Only)
+        # C. CATCH RECURRING STRUCTURAL WORK EXPERIENCE LABELS (Resume Mode Only)
         elif mode == "resume" and ("WORK EXPERIENCE" in current_section or "EXPERIENCE" in current_section):
             has_pipe = '|' in cleaned_line
             has_years = bool(re.search(r'(Present|\b20\d{2}\b)', cleaned_line))
@@ -226,10 +234,9 @@ def generate_pdf(content_text, mode="resume"):
             else:
                 story.append(Paragraph(cleaned_line, body_style))
                 
-        # C. CATCH EVERYTHING ELSE (Contact lines or Normal Cover Letter Paragraph Blocks)
+        # D. CATCH EVERYTHING ELSE (Greetings fall perfectly down here)
         else:
             if '|' in cleaned_line:
-                # Keep contact metadata cleanly centered for a resume header, but flush-left for cover letter body text
                 if mode == "resume":
                     styled_meta = cleaned_line.replace('|', f" <font color='{SECONDARY_COLOR.hexval()}'>|</font> ")
                     story.append(Paragraph(styled_meta, meta_style))
