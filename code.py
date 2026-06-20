@@ -76,7 +76,7 @@ if st.button("Generate Materials", type="primary"):
                 You are given a candidate's Master Resume and a Target Job Description. 
                 
                 Please generate three distinct items:
-                1. **Resume**: Create several (2 to 4) bullet points, summaries, and skills to highlight the most relevant technical and strategic alignment with the Target Job Description to pass ATS (applicant tracking system).
+                1. **Resume**: Create several (2 to 4) bullet points, summaries, and skills to fit the job title of the Target Job Description using the most relevant technical and strategic alignment with the Target Job Description to pass ATS (applicant tracking system).
                                Use the Master Resume to align specific experience. Pick appropriate experience title names based on information provided. 
                                Create identified sections of *Contact Information*, *Professional Summary*, *Work Experience*, *Skills*, and *Education*
                                In *Work Experience*, identify sections of *Company Name*, *Title*, *Years*, *Experience* ; determine appropriate titles based on Target Job Description
