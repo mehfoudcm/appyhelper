@@ -68,7 +68,7 @@ def generate_pdf(content_text, mode="resume"):
             break
 
     # -------------------------------------------------------------------------
-    # 2. Define Palette & Typography (Configured by Document Type Mode)
+    # 2. Define Palette & Typography (With Bigger, Emphasized Headings)
     # -------------------------------------------------------------------------
     PRIMARY_COLOR = HexColor("#1E3A8A")   # Royal Slate Blue
     SECONDARY_COLOR = HexColor("#D97706")  # Warm Amber / Accent Gold
@@ -77,14 +77,15 @@ def generate_pdf(content_text, mode="resume"):
     
     styles = getSampleStyleSheet()
     
+    # Main Name Header (Increased from 24 to 28)
     title_style = ParagraphStyle(
         name='DocTitle',
         fontName='Helvetica-Bold',
-        fontSize=24,
-        leading=28,
+        fontSize=28,
+        leading=32,                         # Scaled to give room to larger font
         alignment=TA_CENTER,
         textColor=PRIMARY_COLOR,
-        spaceAfter=4
+        spaceAfter=6
     )
     
     meta_style = ParagraphStyle(
@@ -94,22 +95,22 @@ def generate_pdf(content_text, mode="resume"):
         leading=14,
         alignment=TA_CENTER,
         textColor=TEXT_MUTED,
-        spaceAfter=12
+        spaceAfter=14
     )
     
+    # Section Headings (Increased from 13.5 to 16)
     heading_style = ParagraphStyle(
         name='SectionHeading',
         fontName='Helvetica-Bold',
-        fontSize=13.5,
-        leading=18,
+        fontSize=16,
+        leading=20,                         # Proportional line height safety limit
         alignment=TA_LEFT,
         textColor=PRIMARY_COLOR,
-        spaceBefore=16,
-        spaceAfter=6,
-        keepWithNext=True
+        spaceBefore=18,                     # Extra top padding so it stands out distinctly
+        spaceAfter=8,
+        keepWithNext=True                   # Keeps section header bound to the description block below it
     )
     
-    # MODE SWITCH: Cover letters look cleaner left-aligned; Resumes look great justified
     body_style = ParagraphStyle(
         name='DocBody',
         fontName='Helvetica',
@@ -117,7 +118,7 @@ def generate_pdf(content_text, mode="resume"):
         leading=15 if mode == "cover_letter" else 14.5,
         alignment=TA_LEFT if mode == "cover_letter" else TA_JUSTIFY,
         textColor=TEXT_DARK,
-        spaceAfter=10 if mode == "cover_letter" else 5  # More breathing room between letter paragraphs
+        spaceAfter=10 if mode == "cover_letter" else 5
     )
     
     bullet_style = ParagraphStyle(
@@ -158,14 +159,14 @@ def generate_pdf(content_text, mode="resume"):
         if cleaned_line.startswith('###') or cleaned_line.startswith('##'):
             text = cleaned_line.lstrip('#').strip()
             
-            # MODE SWITCH: Only include colored line rules for highly categorized resumes
+            # Thickened horizontal lines slightly to go with bigger text scales
             if mode == "resume":
                 story.append(HRFlowable(
                     width="100%", 
-                    thickness=1, 
+                    thickness=1.2, 
                     color=HexColor("#E5E7EB"), 
-                    spaceBefore=10, 
-                    spaceAfter=6
+                    spaceBefore=12, 
+                    spaceAfter=8
                 ))
             story.append(Paragraph(text, heading_style))
             
