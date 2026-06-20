@@ -29,10 +29,13 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # 2. PDF Generation Helper Function (HTML to PDF via WeasyPrint)
 # -----------------------------------------------------------------------------
-def generate_pdf(content_text):
+def generate_pdf(content_text, mode="resume"):
     """
     Polished & Colorful ReportLab PDF Generator.
-    Dynamically extracts the candidate's name from the text to use as the header.
+    
+    Parameters:
+    - content_text (str): The markdown text to convert.
+    - mode (str): 'resume' or 'cover_letter'. Adjusts spacing, rules, and text justification.
     """
     buffer = BytesIO()
     
@@ -52,31 +55,28 @@ def generate_pdf(content_text):
     # -------------------------------------------------------------------------
     # 1. Dynamic Name Extraction (Scans top 5 lines for the name)
     # -------------------------------------------------------------------------
-    derived_title = "APPLICATION MATERIALS"  # Elegant fallback default
+    derived_title = "APPLICATION MATERIALS"
     
     for line in lines[:5]:
         cleaned = line.strip()
         if not cleaned:
             continue
-        # If this line contains the contact info divider, the name is right above it
         if '|' in cleaned:
             break
-        # A good heuristic for the name line: short, not empty, and not a markdown header
         if not cleaned.startswith('#') and len(cleaned) < 50:
             derived_title = cleaned
             break
 
     # -------------------------------------------------------------------------
-    # 2. Define Modern Palette & Custom Typography (Helvetica Stack)
+    # 2. Define Palette & Typography (Configured by Document Type Mode)
     # -------------------------------------------------------------------------
-    PRIMARY_COLOR = HexColor("#1E3A8A")  # Royal Slate Blue
-    SECONDARY_COLOR = HexColor("#D97706") # Warm Amber / Accent Gold
-    TEXT_DARK = HexColor("#1F2937")       # Charcoal Body Text
-    TEXT_MUTED = HexColor("#4B5563")      # Muted Contact Info
+    PRIMARY_COLOR = HexColor("#1E3A8A")   # Royal Slate Blue
+    SECONDARY_COLOR = HexColor("#D97706")  # Warm Amber / Accent Gold
+    TEXT_DARK = HexColor("#1F2937")        # Charcoal Body Text
+    TEXT_MUTED = HexColor("#4B5563")       # Muted Contact Info
     
     styles = getSampleStyleSheet()
     
-    # Main Name Header
     title_style = ParagraphStyle(
         name='DocTitle',
         fontName='Helvetica-Bold',
@@ -97,7 +97,6 @@ def generate_pdf(content_text):
         spaceAfter=12
     )
     
-    # Strongly Emphasized Running Section Headings
     heading_style = ParagraphStyle(
         name='SectionHeading',
         fontName='Helvetica-Bold',
@@ -107,17 +106,18 @@ def generate_pdf(content_text):
         textColor=PRIMARY_COLOR,
         spaceBefore=16,
         spaceAfter=6,
-        keepWithNext=True     # Prevents orphan headings at page breaks
+        keepWithNext=True
     )
     
+    # MODE SWITCH: Cover letters look cleaner left-aligned; Resumes look great justified
     body_style = ParagraphStyle(
         name='DocBody',
         fontName='Helvetica',
-        fontSize=10,
-        leading=14.5,
-        alignment=TA_JUSTIFY,
+        fontSize=10.5 if mode == "cover_letter" else 10,
+        leading=15 if mode == "cover_letter" else 14.5,
+        alignment=TA_LEFT if mode == "cover_letter" else TA_JUSTIFY,
         textColor=TEXT_DARK,
-        spaceAfter=5
+        spaceAfter=10 if mode == "cover_letter" else 5  # More breathing room between letter paragraphs
     )
     
     bullet_style = ParagraphStyle(
@@ -127,7 +127,7 @@ def generate_pdf(content_text):
         leading=14,
         alignment=TA_LEFT,
         textColor=TEXT_DARK,
-        leftIndent=15,       # Keeps hanging bullet indentation aligned
+        leftIndent=15,
         firstLineIndent=-10,
         spaceAfter=4
     )
@@ -135,7 +135,6 @@ def generate_pdf(content_text):
     # -------------------------------------------------------------------------
     # 3. Parse & Build Document Flow
     # -------------------------------------------------------------------------
-    # Add the extracted main Name to the top of the PDF pipeline
     story.append(Paragraph(derived_title.upper(), title_style))
     
     for line in lines:
@@ -144,41 +143,39 @@ def generate_pdf(content_text):
         if not cleaned_line:
             continue
             
-        # Skip outputting the name a second time if it exactly matches the title we just generated
         if cleaned_line == derived_title:
             continue
             
-        # Escape HTML characters so ReportLab's parser doesn't crash on syntax symbols
         cleaned_line = (
             cleaned_line.replace('&', '&amp;')
                         .replace('<', '&lt;')
                         .replace('>', '&gt;')
         )
         
-        # Convert Markdown Bold (**text**) to HTML inline bold tags
         cleaned_line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', cleaned_line)
         
-        # Catch Headings (e.g., "### Professional Experience")
+        # Parse Headings
         if cleaned_line.startswith('###') or cleaned_line.startswith('##'):
             text = cleaned_line.lstrip('#').strip()
             
-            # Add a decorative colored rule right above the section heading for visual pop
-            story.append(HRFlowable(
-                width="100%", 
-                thickness=1, 
-                color=HexColor("#E5E7EB"), 
-                spaceBefore=10, 
-                spaceAfter=6
-            ))
+            # MODE SWITCH: Only include colored line rules for highly categorized resumes
+            if mode == "resume":
+                story.append(HRFlowable(
+                    width="100%", 
+                    thickness=1, 
+                    color=HexColor("#E5E7EB"), 
+                    spaceBefore=10, 
+                    spaceAfter=6
+                ))
             story.append(Paragraph(text, heading_style))
             
-        # Catch Bullet Points
+        # Parse Bullet Points
         elif cleaned_line.startswith('- ') or cleaned_line.startswith('* ') or cleaned_line.startswith('• '):
             text = cleaned_line[2:].strip()
             bullet_text = f"<font color='{PRIMARY_COLOR.hexval()}'>&bull;</font> {text}"
             story.append(Paragraph(bullet_text, bullet_style))
             
-        # Catch Everything Else (Body or Metadata)
+        # Parse Standard Lines / Headers
         else:
             if '|' in cleaned_line:
                 styled_meta = cleaned_line.replace('|', f" <font color='{SECONDARY_COLOR.hexval()}'>|</font> ")
@@ -186,7 +183,6 @@ def generate_pdf(content_text):
             else:
                 story.append(Paragraph(cleaned_line, body_style))
                 
-    # Compile the final document template
     doc.build(story)
     pdf_bytes = buffer.getvalue()
     buffer.close()
@@ -323,7 +319,7 @@ if "results" in st.session_state:
     with tab1:
         st.markdown("### Cover Letter")
 
-        cl_pdf_bytes = generate_pdf(materials.cover_letter, "Cover Letter")
+        cl_pdf_bytes = generate_pdf(materials.cover_letter, mode = "cover_letter")
         
         st.download_button(
             label="⬇️ Download Cover Letter PDF",
@@ -340,7 +336,7 @@ if "results" in st.session_state:
     with tab3:
         st.markdown("### Resume Suggestion")
 
-        resume_pdf_bytes = generate_pdf(materials.tailored_resume)
+        resume_pdf_bytes = generate_pdf(materials.tailored_resume, mode="resume")
         
         st.download_button(
             label="⬇️ Download Resume PDF",
