@@ -32,8 +32,8 @@ st.set_page_config(
 def generate_pdf(content_text, document_title):
     """
     Polished & Colorful ReportLab PDF Generator.
-    Parses Markdown syntax into an executive-level Helvetica layout
-    with Slate Blue headings and subtle horizontal rules.
+    Extracts the candidate's name from the resume text to use as the title,
+    and applies strong emphasis to section headers.
     """
     buffer = BytesIO()
     
@@ -48,11 +48,28 @@ def generate_pdf(content_text, document_title):
     )
     
     story = []
+    lines = content_text.split('\n')
     
     # -------------------------------------------------------------------------
-    # Define Modern Palette & Custom Typography (Helvetica)
+    # 1. Dynamic Name Extraction (Extracts the first line or name before contact info)
     # -------------------------------------------------------------------------
-    # Color definition using HexColor objects instead of raw strings
+    derived_title = document_title  # Fallback to default title passed by app
+    
+    for line in lines[:5]:  # Look closely at the top 5 lines of the text
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+        # If this line contains the contact info divider, the name is likely right above it
+        if '|' in cleaned:
+            break
+        # A good heuristic for the name line: not a markdown header, not empty, and relatively short
+        if not cleaned.startswith('#') and len(cleaned) < 50:
+            derived_title = cleaned
+            break
+
+    # -------------------------------------------------------------------------
+    # 2. Define Modern Palette & Custom Typography (Helvetica Stack)
+    # -------------------------------------------------------------------------
     PRIMARY_COLOR = HexColor("#1E3A8A")  # Royal Slate Blue
     SECONDARY_COLOR = HexColor("#D97706") # Warm Amber / Accent Gold
     TEXT_DARK = HexColor("#1F2937")       # Charcoal Body Text
@@ -60,14 +77,15 @@ def generate_pdf(content_text, document_title):
     
     styles = getSampleStyleSheet()
     
+    # Main Name Header
     title_style = ParagraphStyle(
         name='DocTitle',
         fontName='Helvetica-Bold',
-        fontSize=22,
-        leading=26,
+        fontSize=24,          # Increased size for the main name
+        leading=28,
         alignment=TA_CENTER,
         textColor=PRIMARY_COLOR,
-        spaceAfter=6
+        spaceAfter=4
     )
     
     meta_style = ParagraphStyle(
@@ -80,16 +98,17 @@ def generate_pdf(content_text, document_title):
         spaceAfter=12
     )
     
+    # Strongly Emphasized Running Section Headings
     heading_style = ParagraphStyle(
         name='SectionHeading',
         fontName='Helvetica-Bold',
-        fontSize=12,
-        leading=16,
+        fontSize=13.5,         # Emphasized from 12 to 13.5
+        leading=18,           # Proportional leading allocation
         alignment=TA_LEFT,
         textColor=PRIMARY_COLOR,
-        spaceBefore=14,
-        spaceAfter=4,
-        keepWithNext=True     # Prevents headings from decoupling from text at page bottoms
+        spaceBefore=16,       # Extra padding above to anchor sections elegantly
+        spaceAfter=6,
+        keepWithNext=True     # Prevents orphan headings at page breaks
     )
     
     body_style = ParagraphStyle(
@@ -115,12 +134,10 @@ def generate_pdf(content_text, document_title):
     )
 
     # -------------------------------------------------------------------------
-    # Parse & Build Document Flow
+    # 3. Parse & Build Document Flow
     # -------------------------------------------------------------------------
-    lines = content_text.split('\n')
-    
-    # Setup document header title cleanly
-    story.append(Paragraph(document_title.upper(), title_style))
+    # Add the extracted main Name to the top of the PDF pipeline
+    story.append(Paragraph(derived_title.upper(), title_style))
     
     for line in lines:
         cleaned_line = line.strip()
@@ -128,7 +145,11 @@ def generate_pdf(content_text, document_title):
         if not cleaned_line:
             continue
             
-        # Escape HTML characters so ReportLab's parser doesn't crash on code tags or math signs
+        # Skip outputting the name a second time if it exactly matches the title we just generated
+        if cleaned_line == derived_title:
+            continue
+            
+        # Escape HTML characters so ReportLab's parser doesn't crash on syntax symbols
         cleaned_line = (
             cleaned_line.replace('&', '&amp;')
                         .replace('<', '&lt;')
@@ -138,7 +159,7 @@ def generate_pdf(content_text, document_title):
         # Convert Markdown Bold (**text**) to HTML inline bold tags
         cleaned_line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', cleaned_line)
         
-        # 1. Catch Headings (e.g., "### Technical Skills")
+        # Catch Headings (e.g., "### Professional Experience")
         if cleaned_line.startswith('###') or cleaned_line.startswith('##'):
             text = cleaned_line.lstrip('#').strip()
             
@@ -147,22 +168,20 @@ def generate_pdf(content_text, document_title):
                 width="100%", 
                 thickness=1, 
                 color=HexColor("#E5E7EB"), 
-                spaceBefore=8, 
+                spaceBefore=10, 
                 spaceAfter=6
             ))
             story.append(Paragraph(text, heading_style))
             
-        # 2. Catch Bullet Points
+        # Catch Bullet Points
         elif cleaned_line.startswith('- ') or cleaned_line.startswith('* ') or cleaned_line.startswith('• '):
             text = cleaned_line[2:].strip()
-            # Style bullet symbols natively
             bullet_text = f"<font color='{PRIMARY_COLOR.hexval()}'>&bull;</font> {text}"
             story.append(Paragraph(bullet_text, bullet_style))
             
-        # 3. Catch Everything Else (Body or Metadata)
+        # Catch Everything Else (Body or Metadata)
         else:
             if '|' in cleaned_line:
-                # Add elegant styling to the pipeline elements
                 styled_meta = cleaned_line.replace('|', f" <font color='{SECONDARY_COLOR.hexval()}'>|</font> ")
                 story.append(Paragraph(styled_meta, meta_style))
             else:
@@ -322,7 +341,7 @@ if "results" in st.session_state:
     with tab3:
         st.markdown("### Resume Suggestion")
 
-        resume_pdf_bytes = generate_pdf(materials.tailored_resume, "Resume")
+        resume_pdf_bytes = generate_pdf(materials.tailored_resume)
         
         st.download_button(
             label="⬇️ Download Resume PDF",
