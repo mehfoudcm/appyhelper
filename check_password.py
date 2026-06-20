@@ -1,3 +1,5 @@
+import streamlit as st
+
 def check_password():
     """Returns True if the user had the correct password."""
     # Ensure the password secret exists
