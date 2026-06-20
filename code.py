@@ -30,14 +30,13 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 def generate_pdf(content_text, document_title):
     """
-    Advanced ReportLab PDF Generator.
-    Parses Markdown syntax (headers, bold text, bullets) and converts them
-    into perfectly styled, professional executive-level layouts.
-    this doesn't work at the moment
+    Polished & Colorful ReportLab PDF Generator.
+    Parses Markdown syntax into an executive-level Helvetica layout
+    with Slate Blue headings and subtle horizontal rules.
     """
     buffer = BytesIO()
     
-    # Page setup - 0.75-inch standard executive margins
+    # Page setup - Standard professional 0.75-inch margins
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
@@ -50,72 +49,77 @@ def generate_pdf(content_text, document_title):
     story = []
     
     # -------------------------------------------------------------------------
-    # Define Professional Typography & Styles (Times-Roman / Deep Corporate Palette)
+    # Define Modern Palette & Custom Typography (Helvetica)
     # -------------------------------------------------------------------------
+    # Color definition using HexColor objects instead of raw strings
+    PRIMARY_COLOR = HexColor("#1E3A8A")  # Royal Slate Blue
+    SECONDARY_COLOR = HexColor("#D97706") # Warm Amber / Accent Gold
+    TEXT_DARK = HexColor("#1F2937")       # Charcoal Body Text
+    TEXT_MUTED = HexColor("#4B5563")      # Muted Contact Info
+    
     styles = getSampleStyleSheet()
     
     title_style = ParagraphStyle(
         name='DocTitle',
-        fontName='Times-Bold',
-        fontSize=18,
-        leading=22,
+        fontName='Helvetica-Bold',
+        fontSize=22,
+        leading=26,
         alignment=TA_CENTER,
-        textColor='#111111',
-        spaceAfter=4
+        textColor=PRIMARY_COLOR,
+        spaceAfter=6
     )
     
-    # Subtitle for name/contact section
     meta_style = ParagraphStyle(
         name='DocMeta',
-        fontName='Times-Roman',
-        fontSize=10,
+        fontName='Helvetica',
+        fontSize=9.5,
         leading=14,
         alignment=TA_CENTER,
-        textColor='#555555',
-        spaceAfter=15
+        textColor=TEXT_MUTED,
+        spaceAfter=12
     )
     
-    # Running Section Headings (e.g., Professional Experience, Education)
     heading_style = ParagraphStyle(
         name='SectionHeading',
-        fontName='Times-Bold',
+        fontName='Helvetica-Bold',
         fontSize=12,
         leading=16,
         alignment=TA_LEFT,
-        textColor='#1A365D',  # Deep Slate Navy Accent
-        spaceBefore=12,
-        spaceAfter=6,
-        keepWithNext=True     # Prevents headings from getting orphaned at page bottoms
+        textColor=PRIMARY_COLOR,
+        spaceBefore=14,
+        spaceAfter=4,
+        keepWithNext=True     # Prevents headings from decoupling from text at page bottoms
     )
     
     body_style = ParagraphStyle(
         name='DocBody',
-        fontName='Times-Roman',
-        fontSize=10.5,
-        leading=15,
+        fontName='Helvetica',
+        fontSize=10,
+        leading=14.5,
         alignment=TA_JUSTIFY,
-        spaceAfter=6
+        textColor=TEXT_DARK,
+        spaceAfter=5
     )
     
     bullet_style = ParagraphStyle(
         name='DocBullet',
-        fontName='Times-Roman',
-        fontSize=10.5,
+        fontName='Helvetica',
+        fontSize=10,
         leading=14,
         alignment=TA_LEFT,
-        leftIndent=15,       # Indents bullet text cleanly
-        firstLineIndent=-10, # Aligns the bullet symbol out to the left
+        textColor=TEXT_DARK,
+        leftIndent=15,       # Keeps hanging bullet indentation aligned
+        firstLineIndent=-10,
         spaceAfter=4
     )
 
     # -------------------------------------------------------------------------
-    # Process & Parse Text into Flowables
+    # Parse & Build Document Flow
     # -------------------------------------------------------------------------
     lines = content_text.split('\n')
     
-    # Document Header
+    # Setup document header title cleanly
     story.append(Paragraph(document_title.upper(), title_style))
-    story.append(Spacer(1, 12))
     
     for line in lines:
         cleaned_line = line.strip()
@@ -123,37 +127,47 @@ def generate_pdf(content_text, document_title):
         if not cleaned_line:
             continue
             
-        # 1. Clean HTML characters so ReportLab doesn't crash on syntax symbols
+        # Escape HTML characters so ReportLab's parser doesn't crash on code tags or math signs
         cleaned_line = (
             cleaned_line.replace('&', '&amp;')
                         .replace('<', '&lt;')
                         .replace('>', '&gt;')
         )
         
-        # 2. Convert Markdown Bold (**text**) to HTML style tags (<b>text</b>)
+        # Convert Markdown Bold (**text**) to HTML inline bold tags
         cleaned_line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', cleaned_line)
         
-        # 3. Check for Headings (e.g., "### Experience" or "### Summary")
+        # 1. Catch Headings (e.g., "### Technical Skills")
         if cleaned_line.startswith('###') or cleaned_line.startswith('##'):
             text = cleaned_line.lstrip('#').strip()
+            
+            # Add a decorative colored rule right above the section heading for visual pop
+            story.append(HRFlowable(
+                width="100%", 
+                thickness=1, 
+                color=HexColor("#E5E7EB"), 
+                spaceBefore=8, 
+                spaceAfter=6
+            ))
             story.append(Paragraph(text, heading_style))
             
-        # 4. Check for Bullet Points (e.g., "- Built AI agents..." or "* Managed risk...")
+        # 2. Catch Bullet Points
         elif cleaned_line.startswith('- ') or cleaned_line.startswith('* ') or cleaned_line.startswith('• '):
             text = cleaned_line[2:].strip()
-            # Insert a neat unicode bullet character
-            bullet_text = f"&bull; {text}"
+            # Style bullet symbols natively
+            bullet_text = f"<font color='{PRIMARY_COLOR.hexval()}'>&bull;</font> {text}"
             story.append(Paragraph(bullet_text, bullet_style))
             
-        # 5. Handle standard body text paragraphs
+        # 3. Catch Everything Else (Body or Metadata)
         else:
-            # If it looks like a contact info string (contains | symbols), center align it
             if '|' in cleaned_line:
-                story.append(Paragraph(cleaned_line, meta_style))
+                # Add elegant styling to the pipeline elements
+                styled_meta = cleaned_line.replace('|', f" <font color='{SECONDARY_COLOR.hexval()}'>|</font> ")
+                story.append(Paragraph(styled_meta, meta_style))
             else:
                 story.append(Paragraph(cleaned_line, body_style))
                 
-    # Build the document template sequence
+    # Compile the final document template
     doc.build(story)
     pdf_bytes = buffer.getvalue()
     buffer.close()
