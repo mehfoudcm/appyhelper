@@ -2,6 +2,7 @@ import streamlit as st
 from openai import OpenAI
 from pydantic import BaseModel
 from generate_pdf import generate_pdf
+from check_password import check_password
 
 # -----------------------------------------------------------------------------
 # 1. Define the Expected Output Structure using Pydantic
