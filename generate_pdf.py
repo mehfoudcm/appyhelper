@@ -33,8 +33,6 @@ def generate_pdf(content_text, mode="resume"):
         "PROFESSIONAL SUMMARY", 
         "SUMMARY",
         "WORK EXPERIENCE", 
-        # "PROFESSIONAL EXPERIENCE",
-        # "EXPERIENCE",
         "SKILLS", 
         "TECHNICAL SKILLS",
         "EDUCATION"
@@ -59,7 +57,7 @@ def generate_pdf(content_text, mode="resume"):
     # -------------------------------------------------------------------------
     PRIMARY_COLOR = HexColor("#1E3A8A")   # Royal Slate Blue
     SECONDARY_COLOR = HexColor("#D97706")  # Warm Amber
-    TEXT_DARK = HexColor("#1F2937")        # Charcoal
+    TEXT_DARK = HexColor("#1F2937")        # Deep Charcoal
     TEXT_MUTED = HexColor("#4B5563")       # Slate Gray
     
     title_style = ParagraphStyle(
@@ -86,8 +84,8 @@ def generate_pdf(content_text, mode="resume"):
     heading_style = ParagraphStyle(
         name='SectionHeading',
         fontName='Helvetica-Bold',
-        fontSize=16,
-        leading=20,
+        fontSize=15,
+        leading=19,
         alignment=TA_LEFT,
         textColor=PRIMARY_COLOR,
         spaceBefore=14,
@@ -98,38 +96,38 @@ def generate_pdf(content_text, mode="resume"):
     # Font Style 2: "Title" (Role Headline)
     role_title_style = ParagraphStyle(
         name='SubTitleRole',
-        fontName='Helvetica-Bold',         # Solid Bold
+        fontName='Helvetica-Bold',         
         fontSize=12,
         leading=16,
         alignment=TA_LEFT,
         textColor=PRIMARY_COLOR,
         spaceBefore=6,
-        spaceAfter=1,
+        spaceAfter=2,
         keepWithNext=True
     )
     
-    # Font Style 3: "Company Name" Subheader
+    # Font Style 3: "Company Name" Subheader (Enhanced to pop out in Charcoal)
     company_name_style = ParagraphStyle(
         name='SubCompany',
-        fontName='Helvetica-BoldOblique',   # Distinct Bold Italic styling
-        fontSize=10.5,
-        leading=14,
+        fontName='Helvetica-Bold',          
+        fontSize=13,                       
+        leading=17,
         alignment=TA_LEFT,
-        textColor=TEXT_DARK,
-        spaceBefore=1,
-        spaceAfter=1,
+        textColor=TEXT_DARK,               
+        spaceBefore=3,
+        spaceAfter=2,
         keepWithNext=True
     )
     
     # Font Style 4: "Years" Subheader
     years_style = ParagraphStyle(
         name='SubYears',
-        fontName='Helvetica-Oblique',       # Clean structural Italic layout
+        fontName='Helvetica-Oblique',       
         fontSize=9.5,
         leading=13,
         alignment=TA_LEFT,
         textColor=SECONDARY_COLOR,
-        spaceBefore=0,
+        spaceBefore=1,
         spaceAfter=4,
         keepWithNext=True
     )
@@ -207,18 +205,17 @@ def generate_pdf(content_text, mode="resume"):
             
         # C. GRANULAR WORK EXPERIENCE METADATA PARSING
         elif mode == "resume" and ("WORK EXPERIENCE" in current_section or "EXPERIENCE" in current_section):
-            # Check if this line is explicitly stating a field or structured via standard pipes
             lower_line = cleaned_line.lower()
             
-            # Pattern 1: Explicit labels present (e.g., "Company Name: Acme Corp")
-            if "Company Name:" in lower_line or "title:" in lower_line or "years:" in lower_line:
-                # Strip out the actual label words cleanly via regex
-                clean_text = re.sub(r'(?i)\b(company name|title|years|duration|date|dates)\s*:\s*', '', cleaned_line)
+            # Pattern 1: Explicit labels present (Fixed lowercase string comparisons)
+            if "company name:" in lower_line or "title:" in lower_line or "years:" in lower_line:
+                # Strip out the key labels cleanly using case-insensitive regex
+                clean_text = re.sub(r'(?i)\b(company name|company|title|years|duration|date|dates)\s*:\s*', '', cleaned_line)
                 clean_text = clean_text.replace('<b>', '').replace('</b>', '').strip()
                 
                 if "title:" in lower_line:
                     story.append(Paragraph(clean_text, role_title_style))
-                elif "company name:" in lower_line:
+                elif "company name:" in lower_line or "company:" in lower_line:
                     story.append(Paragraph(clean_text, company_name_style))
                 elif "years:" in lower_line:
                     story.append(Paragraph(clean_text, years_style))
@@ -227,13 +224,12 @@ def generate_pdf(content_text, mode="resume"):
             elif '|' in cleaned_line or bool(re.search(r'(Present|\b20\d{2}\b)', cleaned_line)):
                 parts = [p.strip().replace('<b>', '').replace('</b>', '') for p in re.split(r'[\|\–\-–—]', cleaned_line) if p.strip()]
                 
-                # Dynamically assign cascading subheaders sequentially down the layout tree
                 if len(parts) >= 3:
-                    story.append(Paragraph(parts[0], role_title_style))       # Title
+                    story.append(Paragraph(parts[0], role_title_style))     # Title
                     story.append(Paragraph(parts[1], company_name_style))   # Company Name
                     story.append(Paragraph(parts[2], years_style))          # Years
                 elif len(parts) == 2:
-                    story.append(Paragraph(parts[0], role_title_style))       # Title
+                    story.append(Paragraph(parts[0], role_title_style))     # Title
                     story.append(Paragraph(parts[1], company_name_style))   # Company Name
                 else:
                     story.append(Paragraph(cleaned_line, role_title_style))
