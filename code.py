@@ -270,7 +270,8 @@ if st.button("Generate Materials", type="primary"):
                 You are given a candidate's Master Resume and a Target Job Description. 
                 
                 Please generate three distinct items:
-                1. **Resume**: Create several bullet points, summaries, and skills to highlight the most relevant technical and strategic alignment with the Target Job Description to pass ATS (applicant tracking system). Use the Master Resume to align specific experience.
+                1. **Resume**: Create several (2 to 4) bullet points, summaries, and skills to highlight the most relevant technical and strategic alignment with the Target Job Description to pass ATS (applicant tracking system).
+                               Pick appropriate title names based on information provided. Use the Master Resume to align specific experience.
                 2. **Cover Letter**: Write a compelling, highly professional cover letter matching the candidate's exact background to the key themes of the job description. Keep it to 3 paragraphs. Use Master Resume.
                 3. **Interest Blurb**: Write a concise, one paragraph response to the standard prompt: "Why are you interested in this position/company?". Make it punchy, authentic, and metric-focused where possible.
 
