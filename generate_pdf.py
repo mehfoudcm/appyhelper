@@ -31,7 +31,7 @@ def generate_pdf(content_text, mode="resume"):
     # 1. Target Resume Section Headings Definitions
     # -------------------------------------------------------------------------
     TARGET_SECTIONS = [
-        "CONTACT INFORMATION", 
+       # "CONTACT INFORMATION", 
         "PROFESSIONAL SUMMARY", 
         "SUMMARY",
         "WORK EXPERIENCE", 
