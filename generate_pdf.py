@@ -1,18 +1,16 @@
+# pdf_generator.py
 from io import BytesIO
 import re
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+from reportlab.platypus import SimpleDocTemplate, Paragraph, HRFlowable, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.lib.colors import HexColor
 
 def generate_pdf(content_text, mode="resume"):
     """
-    Advanced ReportLab PDF Generator.
-    
-    Parameters:
-    - content_text (str): The markdown text to convert.
-    - mode (str): 'resume' or 'cover_letter'. Adjusts spacing, rules, and text justification.
+    Advanced ReportLab PDF Generator module configured for targeted executive sections:
+    Contact Information, Professional Summary, Work Experience, Skills, and Education.
     """
     buffer = BytesIO()
     
@@ -30,31 +28,42 @@ def generate_pdf(content_text, mode="resume"):
     lines = content_text.split('\n')
     
     # -------------------------------------------------------------------------
-    # 1. Dynamic Name Extraction (Scans top 5 lines for the name)
+    # 1. Target Resume Section Headings Definitions
     # -------------------------------------------------------------------------
-    derived_title = "APPLICATION MATERIALS"
+    TARGET_SECTIONS = [
+        "CONTACT INFORMATION", 
+        "PROFESSIONAL SUMMARY", 
+        "SUMMARY",
+        "WORK EXPERIENCE", 
+        "PROFESSIONAL EXPERIENCE",
+        "SKILLS", 
+        "TECHNICAL SKILLS",
+        "EDUCATION"
+    ]
     
+    # 2. Dynamic Name Extraction (Scans top 5 lines for the candidate's name)
+    derived_title = "APPLICATION MATERIALS"
     for line in lines[:5]:
         cleaned = line.strip()
         if not cleaned:
             continue
         if '|' in cleaned:
             break
+        # If the top line is already explicitly labeled as contact info, skip it for the big title
+        if any(sec in cleaned.upper() for sec in TARGET_SECTIONS):
+            break
         if not cleaned.startswith('#') and len(cleaned) < 50:
             derived_title = cleaned
             break
 
     # -------------------------------------------------------------------------
-    # 2. Define Palette & Enhanced Typography
+    # 3. Define Palette & Enhanced Typography
     # -------------------------------------------------------------------------
     PRIMARY_COLOR = HexColor("#1E3A8A")   # Royal Slate Blue
     SECONDARY_COLOR = HexColor("#D97706")  # Warm Amber / Accent Gold
     TEXT_DARK = HexColor("#1F2937")        # Charcoal Body Text
     TEXT_MUTED = HexColor("#4B5563")       # Muted Contact Info
     
-    styles = getSampleStyleSheet()
-    
-    # Main Name Header
     title_style = ParagraphStyle(
         name='DocTitle',
         fontName='Helvetica-Bold',
@@ -75,20 +84,18 @@ def generate_pdf(content_text, mode="resume"):
         spaceAfter=14
     )
     
-    # BIGGER Category Headings (Increased from 16 to 18)
     heading_style = ParagraphStyle(
         name='SectionHeading',
         fontName='Helvetica-Bold',
-        fontSize=18,
+        fontSize=18,                       # Big bold 18pt section headers
         leading=22,
         alignment=TA_LEFT,
         textColor=PRIMARY_COLOR,
-        spaceBefore=6,                     # Padding adjusted since HRFlowable introduces its own space
+        spaceBefore=4,
         spaceAfter=10,
-        keepWithNext=True                   # Holds heading together with content beneath it
+        keepWithNext=True
     )
     
-    # Job Title Style
     job_title_style = ParagraphStyle(
         name='JobTitle',
         fontName='Helvetica-Bold',
@@ -124,55 +131,56 @@ def generate_pdf(content_text, mode="resume"):
     )
 
     # -------------------------------------------------------------------------
-    # 3. Parse & Build Document Flow
+    # 4. Parse & Build Document Flow
     # -------------------------------------------------------------------------
+    # Render main Candidate Name Header at the absolute top
     story.append(Paragraph(derived_title.upper(), title_style))
     
     for line in lines:
         cleaned_line = line.strip()
-        
-        if not cleaned_line:
+        if not cleaned_line or cleaned_line == derived_title:
             continue
             
-        if cleaned_line == derived_title:
-            continue
-            
+        # Clean HTML characters so ReportLab's inner XML engine doesn't crash
         cleaned_line = (
             cleaned_line.replace('&', '&amp;')
                         .replace('<', '&lt;')
                         .replace('>', '&gt;')
         )
         
-        # Convert Markdown Bold (**text**) to HTML inline bold tags
+        # Translate markdown bold rules into native FPDF inline markup tags
         cleaned_line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', cleaned_line)
         
-        # A. Parse Major Categories with Thick Section Divider Lines
-        if cleaned_line.startswith('###') or cleaned_line.startswith('##'):
+        # Normalize the string to see if it qualifies as one of our target resume sections
+        normalized_line = cleaned_line.lstrip('#').strip().upper()
+        is_target_section = any(sec == normalized_line or normalized_line.startswith(sec) for sec in TARGET_SECTIONS)
+        
+        # A. Catch Major Targeted Sections
+        if cleaned_line.startswith('#') or is_target_section:
             text = cleaned_line.lstrip('#').strip()
             
-            # Draw strong structural rule lines between large categories
+            # Draw strong structural lines between sections for resume layouts
             if mode == "resume":
                 story.append(HRFlowable(
-                    width="100%", 
-                    thickness=1.5,         # Bold architectural divider
-                    color=PRIMARY_COLOR,   # Matches brand slate blue palette
-                    spaceBefore=16,        # Generous breathing room above sections
-                    spaceAfter=6
+                    width="100%", thickness=1.5, color=PRIMARY_COLOR,
+                    spaceBefore=14, spaceAfter=6
                 ))
             story.append(Paragraph(text, heading_style))
             
-        # B. Parse Bullet Points
+        # B. Catch Bullet Points
         elif cleaned_line.startswith('- ') or cleaned_line.startswith('* ') or cleaned_line.startswith('• '):
             text = cleaned_line[2:].strip()
             bullet_text = f"<font color='{PRIMARY_COLOR.hexval()}'>&bull;</font> {text}"
             story.append(Paragraph(bullet_text, bullet_style))
             
-        # C. Parse Standard Lines / Headers / Job Titles
+        # C. Catch Normal Text / Inline Elements
         else:
+            # Format Contact Information cleanly if a pipe divider line exists
             if '|' in cleaned_line:
                 styled_meta = cleaned_line.replace('|', f" <font color='{SECONDARY_COLOR.hexval()}'>|</font> ")
                 story.append(Paragraph(styled_meta, meta_style))
             
+            # Format job titles / timeline headings inside Work Experience cleanly
             elif mode == "resume" and (cleaned_line.startswith('<b>') or any(token in cleaned_line for token in ["Present", "202", "201"])):
                 story.append(Paragraph(cleaned_line, job_title_style))
                 
