@@ -29,11 +29,10 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # 2. PDF Generation Helper Function (HTML to PDF via WeasyPrint)
 # -----------------------------------------------------------------------------
-def generate_pdf(content_text, document_title):
+def generate_pdf(content_text):
     """
     Polished & Colorful ReportLab PDF Generator.
-    Extracts the candidate's name from the resume text to use as the title,
-    and applies strong emphasis to section headers.
+    Dynamically extracts the candidate's name from the text to use as the header.
     """
     buffer = BytesIO()
     
@@ -51,18 +50,18 @@ def generate_pdf(content_text, document_title):
     lines = content_text.split('\n')
     
     # -------------------------------------------------------------------------
-    # 1. Dynamic Name Extraction (Extracts the first line or name before contact info)
+    # 1. Dynamic Name Extraction (Scans top 5 lines for the name)
     # -------------------------------------------------------------------------
-    derived_title = document_title  # Fallback to default title passed by app
+    derived_title = "APPLICATION MATERIALS"  # Elegant fallback default
     
-    for line in lines[:5]:  # Look closely at the top 5 lines of the text
+    for line in lines[:5]:
         cleaned = line.strip()
         if not cleaned:
             continue
-        # If this line contains the contact info divider, the name is likely right above it
+        # If this line contains the contact info divider, the name is right above it
         if '|' in cleaned:
             break
-        # A good heuristic for the name line: not a markdown header, not empty, and relatively short
+        # A good heuristic for the name line: short, not empty, and not a markdown header
         if not cleaned.startswith('#') and len(cleaned) < 50:
             derived_title = cleaned
             break
@@ -81,7 +80,7 @@ def generate_pdf(content_text, document_title):
     title_style = ParagraphStyle(
         name='DocTitle',
         fontName='Helvetica-Bold',
-        fontSize=24,          # Increased size for the main name
+        fontSize=24,
         leading=28,
         alignment=TA_CENTER,
         textColor=PRIMARY_COLOR,
@@ -102,11 +101,11 @@ def generate_pdf(content_text, document_title):
     heading_style = ParagraphStyle(
         name='SectionHeading',
         fontName='Helvetica-Bold',
-        fontSize=13.5,         # Emphasized from 12 to 13.5
-        leading=18,           # Proportional leading allocation
+        fontSize=13.5,
+        leading=18,
         alignment=TA_LEFT,
         textColor=PRIMARY_COLOR,
-        spaceBefore=16,       # Extra padding above to anchor sections elegantly
+        spaceBefore=16,
         spaceAfter=6,
         keepWithNext=True     # Prevents orphan headings at page breaks
     )
