@@ -31,7 +31,7 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 def generate_pdf(content_text, mode="resume"):
     """
-    Polished & Colorful ReportLab PDF Generator.
+    Advanced ReportLab PDF Generator.
     
     Parameters:
     - content_text (str): The markdown text to convert.
@@ -68,7 +68,7 @@ def generate_pdf(content_text, mode="resume"):
             break
 
     # -------------------------------------------------------------------------
-    # 2. Define Palette & Typography (With Bigger, Emphasized Headings)
+    # 2. Define Palette & Typography (With Bigger Headings & Job Titles)
     # -------------------------------------------------------------------------
     PRIMARY_COLOR = HexColor("#1E3A8A")   # Royal Slate Blue
     SECONDARY_COLOR = HexColor("#D97706")  # Warm Amber / Accent Gold
@@ -77,12 +77,12 @@ def generate_pdf(content_text, mode="resume"):
     
     styles = getSampleStyleSheet()
     
-    # Main Name Header (Increased from 24 to 28)
+    # Main Name Header
     title_style = ParagraphStyle(
         name='DocTitle',
         fontName='Helvetica-Bold',
         fontSize=28,
-        leading=32,                         # Scaled to give room to larger font
+        leading=32,
         alignment=TA_CENTER,
         textColor=PRIMARY_COLOR,
         spaceAfter=6
@@ -98,17 +98,30 @@ def generate_pdf(content_text, mode="resume"):
         spaceAfter=14
     )
     
-    # Section Headings (Increased from 13.5 to 16)
+    # Large Category Headings
     heading_style = ParagraphStyle(
         name='SectionHeading',
         fontName='Helvetica-Bold',
         fontSize=16,
-        leading=20,                         # Proportional line height safety limit
+        leading=20,
         alignment=TA_LEFT,
         textColor=PRIMARY_COLOR,
-        spaceBefore=18,                     # Extra top padding so it stands out distinctly
+        spaceBefore=14,
         spaceAfter=8,
-        keepWithNext=True                   # Keeps section header bound to the description block below it
+        keepWithNext=True
+    )
+    
+    # Bigger Job Title Style (Increased prominence for role lines)
+    job_title_style = ParagraphStyle(
+        name='JobTitle',
+        fontName='Helvetica-Bold',
+        fontSize=11.5,                      # Scaled up slightly over standard body font
+        leading=15,
+        alignment=TA_LEFT,
+        textColor=TEXT_DARK,
+        spaceBefore=6,                     # Vertical space above a new position entry
+        spaceAfter=4,
+        keepWithNext=True                   # Keeps job details anchored to its descriptive bullets
     )
     
     body_style = ParagraphStyle(
@@ -153,34 +166,41 @@ def generate_pdf(content_text, mode="resume"):
                         .replace('>', '&gt;')
         )
         
+        # Convert Markdown Bold (**text**) to HTML inline bold tags
         cleaned_line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', cleaned_line)
         
-        # Parse Headings
+        # A. Parse Major Categories (e.g., "### Professional Experience")
         if cleaned_line.startswith('###') or cleaned_line.startswith('##'):
             text = cleaned_line.lstrip('#').strip()
             
-            # Thickened horizontal lines slightly to go with bigger text scales
+            # Draw strong structural rule lines between large categories
             if mode == "resume":
                 story.append(HRFlowable(
                     width="100%", 
-                    thickness=1.2, 
-                    color=HexColor("#E5E7EB"), 
-                    spaceBefore=12, 
+                    thickness=1.5,         # Thick, robust divider line
+                    color=PRIMARY_COLOR,   # Matches brand slate blue palette
+                    spaceBefore=14, 
                     spaceAfter=8
                 ))
             story.append(Paragraph(text, heading_style))
             
-        # Parse Bullet Points
+        # B. Parse Bullet Points
         elif cleaned_line.startswith('- ') or cleaned_line.startswith('* ') or cleaned_line.startswith('• '):
             text = cleaned_line[2:].strip()
             bullet_text = f"<font color='{PRIMARY_COLOR.hexval()}'>&bull;</font> {text}"
             story.append(Paragraph(bullet_text, bullet_style))
             
-        # Parse Standard Lines / Headers
+        # C. Parse Standard Lines / Headers / Job Titles
         else:
             if '|' in cleaned_line:
                 styled_meta = cleaned_line.replace('|', f" <font color='{SECONDARY_COLOR.hexval()}'>|</font> ")
                 story.append(Paragraph(styled_meta, meta_style))
+            
+            # Heuristic check: If a line starts with bold tags or contains standard date context (e.g., "Present", "20"), 
+            # and it's inside a resume layout, format it as an prioritized job heading line.
+            elif mode == "resume" and (cleaned_line.startswith('<b>') or any(token in cleaned_line for token in ["Present", "202", "201"])):
+                story.append(Paragraph(cleaned_line, job_title_style))
+                
             else:
                 story.append(Paragraph(cleaned_line, body_style))
                 
